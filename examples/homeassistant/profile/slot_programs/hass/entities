@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 # Downloads available entities from a running Home Assistant server using the
 # REST API and prints their friendly names as slot values.
 #
@@ -31,6 +29,14 @@ url="${url%/}"
 # Long-lived access token
 token="$(jq --raw-output .home_assistant.access_token < "${profile}")"
 
+# Create array of excluded entities from line items in file
+excluded_entities_file="${RHASSPY_PROFILE_DIR}/slot_programs/hass/excluded_entities"
+exclude_list=()
+
+if [[ -f "${excluded_entities_file}" ]]; then
+    readarray -t exclude_list < "${excluded_entities_file}"
+fi
+
 # -----------------------------------------------------------------------------
 
 # Use REST api to list the states of all Home Assistant entities.
@@ -51,9 +57,9 @@ curl -X GET \
             # Filter based on domain
             for domain in "$@";
             do
-                # Check if entity id starts with domain and a dot
+                # Check if entity id starts with domain and a dot and is not in the exclusion list
                 domain_regex="^${domain}\."
-                if [[ "${entity_id}" =~ $domain_regex ]]; then
+                if [[ "${entity_id}" =~ $domain_regex && ! "${exclude_list[@]}" =~ "${entity_id}" ]]; then
                     echo "${friendly_name}"
                     break
                 fi
